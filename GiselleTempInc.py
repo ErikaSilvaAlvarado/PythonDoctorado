@@ -43,7 +43,6 @@ df1 = fu.PointsLinearity(df,xRange, param, val)
 fig1 = fu.PlotInteractive(df1, param, paramTitle, val)
 fig1.update_layout(title="MZI Giselle vs Temperature Inc.")
 fig1.show()
-
 #fu.FastFourierPlot(df,xRange)
 #xRange = [1547,1560]; val= 'min'
 #xRange = [1520,1580]; val= 'min'
