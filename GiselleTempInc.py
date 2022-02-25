@@ -23,9 +23,9 @@ font = {'size': 12,
         }
 
 
-##main
+##mai
 os.getcwd()  # current directory
-os.chdir(r'C:\Users\Erika\OneDrive - Universidad de Guanajuato\Giselle\INTERFEROMETRO_20_08_21\Inc')
+os.chdir(r'/home/estudiante/PythonDoctorado/Signals/INTERFEROMETRO_20_08_21/Inc')
 xRange = [1520,1570]
 #temperatura
 dfParam = pd.read_csv('Inc.csv', skiprows=1,header=None, names=["fileName", "param"])

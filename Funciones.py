@@ -11,9 +11,9 @@ import plotly.graph_objects as go
 from scipy import signal
 from scipy.signal import argrelextrema
 from scipy.fft import fft, ifft, fftfreq
-import pywt
+#import pywt
 
-
+cm = 1/2.54  # centimeters in inches
 
 def ReadFolderPout(fileInit, xRange, param):
     #Read files (only xRange interval)
@@ -21,12 +21,16 @@ def ReadFolderPout(fileInit, xRange, param):
     NOF =len(param) # número de columnas
     for i in range(NOF):
         if fileInit + i  < 10:
-             file = 'W000' + str(fileInit + i) + '.csv'
+             file = 'W00' + str(fileInit + i) + '.CSV'
+             #file = 'W000' + str(fileInit + i) + '.csv'
         else:
              if fileInit + i  < 100:
-                file = 'W00' + str(fileInit + i) + '.csv'
+                #file = 'W00' + str(fileInit + i) + '.csv'
+                file = 'W00' + str(fileInit + i) + '.CSV'
              else:
-                file = 'W0' + str(fileInit + i) + '.csv'
+                #file = 'W0' + str(fileInit + i) + '.csv'
+                file = 'W0' + str(fileInit + i) + '.CSV'
+
         [xi, yi] = LoadFile(file, 29, xRange)
         x.append(xi)
         y.append(yi)
@@ -76,22 +80,31 @@ def List2df(x,y,L,param):
                 df[str(param[i])] = y[i]
     return df
 
-def PointsLinearity(df, xRange, param, val):
-    df1 = df[(df['Wavelength'] >= xRange[0]) & (df['Wavelength'] <= xRange[1])]
-    NOF = len(param)
+def SelectDataFrame(df,xRange, param, indexSel):
+    NOF = len(indexSel)
     paramStr = []
+    x = df[(df['Wavelength'] >= xRange[0]) & (df['Wavelength'] <= xRange[1])]['Wavelength'].tolist()
+    df1 = pd.DataFrame()
+    df1['Wavelength'] = x
+    for i in range(NOF):
+        k = indexSel[i]
+        paramStr.append(str(param[k]))
+        yi = df[(df['Wavelength'] >= xRange[0]) & (df['Wavelength'] <= xRange[1])][paramStr[i]].tolist()
+        df1[paramStr[i]] = yi
+    return df1
+
+def PointsLinearity(df1, val):
+    col_names = df1.columns.values[1:]
+    paramStr = col_names.tolist()
+    NOF = len(paramStr)
     if val == 'max':
         for i in range(NOF):
-            paramStr.append(str(param[i]))
             df1['max' + str(i)] = df1.iloc[argrelextrema(df1[paramStr[i]].values, np.greater_equal, order=15)[0]][paramStr[i]]
-
     elif val == 'min':
         for i in range(NOF):
-            paramStr.append(str(param[i]))
-            df1['min' + str(i)] = df1.iloc[argrelextrema(df1[paramStr[i]].values, np.less_equal, order=15)[0]][
-                    paramStr[i]]
-
+            df1['min' + str(i)] = df1.iloc[argrelextrema(df1[paramStr[i]].values, np.less_equal, order=15)[0]][paramStr[i]]
     else:
+        #falta verificar
         valY1 = df1[(df1[paramStr] >= val)][paramStr]
         kval = df1[(df1[paramStr] >= val)][paramStr].idxmin()
         valX1 = df1["Wavelength"].loc[kval].tolist()
@@ -117,6 +130,34 @@ def LinearityLaser(df, param, height, thresh, prom):
             df['FWHM' + str(i)][peaksIndex[j]] = FWHM
     return df
 
+def PlotInteractiveTx(df1, paramTitle):
+    col_names = df1.columns.values[1:]
+    paramStr = col_names.tolist()
+    NOF = len(paramStr)
+    colorLegend =[ ' black', ' blue', ' blueviolet', ' brown', ' cadetblue', ' chocolate', ' coral',
+                    ' cornflowerblue', ' crimson', ' darkblue', ' darkcyan', ' darkmagenta', ' darkorange', ' darkred',
+                    ' darkseagreen', ' darkslategray', ' darkviolet', ' deeppink', ' deepskyblue', ' dodgerblue',
+                    ' firebrick', ' forestgreen', ' fuchsia', ' gold', ' goldenrod', ' green', ' hotpink', ' indianred',
+                    ' indigo', ' orangered', ' purple', ' rebeccapurple', ' red', ' saddlebrown', ' salmon',
+                    ' seagreen', ' sienna', ' slateblue', ' steelblue', ' violet', ' yellowgreen', 'aqua', 'aquamarine',
+                    'darkgoldenrod', 'darkorchid', 'darkslateblue', 'darkturquoise', 'greenyellow', 'navy',
+                    'palevioletred', 'royalblue', 'sandybrown']
+
+    A = df1["Wavelength"].tolist()
+    fig1 = make_subplots()
+    for i in range(NOF):
+        B = df1[paramStr[i]]
+        fig1.add_trace(go.Scatter(
+            x=A,
+            y=B,
+            legendgroup = 'lgd'+str(i),
+            name=paramStr[i],
+            mode="lines",
+            line_color=colorLegend[i],
+            ))
+    fig1.update_layout(legend_title_text=paramTitle)
+    return fig1
+
 def PlotInteractive(df1, param, paramTitle, val):
     NOF = len(param)
     colorLegend =[ ' black', ' blue', ' blueviolet', ' brown', ' cadetblue', ' chocolate', ' coral',
@@ -127,7 +168,6 @@ def PlotInteractive(df1, param, paramTitle, val):
                     ' seagreen', ' sienna', ' slateblue', ' steelblue', ' violet', ' yellowgreen', 'aqua', 'aquamarine',
                     'darkgoldenrod', 'darkorchid', 'darkslateblue', 'darkturquoise', 'greenyellow', 'navy',
                     'palevioletred', 'royalblue', 'sandybrown']
-
     A = df1["Wavelength"].tolist()
     fig1 = make_subplots(1,2)
     paramStr = []
@@ -143,6 +183,7 @@ def PlotInteractive(df1, param, paramTitle, val):
             line_color=colorLegend[i],
             ),row=1, col=1)
     fig1.update_layout(legend_title_text=paramTitle)
+    # add val points
     for i in range(len(paramStr)):
         A1 = df1[~pd.isnull(df1[val + str(i)])]['Wavelength'].tolist()
         B1 = df1[~pd.isnull(df1[val + str(i)])][paramStr[i]].tolist()
@@ -169,6 +210,58 @@ def PlotInteractive(df1, param, paramTitle, val):
             ),row=1, col=2)
     return fig1
 
+def PlotInteractiveLin(df1, paramSel, val):
+    NOF = len(paramSel)
+    col_names = df1.columns.values[1:NOF+1]
+    paramStr = col_names.tolist()
+    colorLegend =[ ' black', ' blue', ' blueviolet', ' brown', ' cadetblue', ' chocolate', ' coral',
+                    ' cornflowerblue', ' crimson', ' darkblue', ' darkcyan', ' darkmagenta', ' darkorange', ' darkred',
+                    ' darkseagreen', ' darkslategray', ' darkviolet', ' deeppink', ' deepskyblue', ' dodgerblue',
+                    ' firebrick', ' forestgreen', ' fuchsia', ' gold', ' goldenrod', ' green', ' hotpink', ' indianred',
+                    ' indigo', ' orangered', ' purple', ' rebeccapurple', ' red', ' saddlebrown', ' salmon',
+                    ' seagreen', ' sienna', ' slateblue', ' steelblue', ' violet', ' yellowgreen', 'aqua', 'aquamarine',
+                    'darkgoldenrod', 'darkorchid', 'darkslateblue', 'darkturquoise', 'greenyellow', 'navy',
+                    'palevioletred', 'royalblue', 'sandybrown']
+    A = df1["Wavelength"].tolist()
+    fig1 = make_subplots(1,2)
+    for i in range(NOF):
+        B = df1[paramStr[i]]
+        fig1.add_trace(go.Scatter(
+            x=A,
+            y=B,
+            legendgroup = 'lgd'+str(i),
+            name=paramStr[i],
+            mode="lines",
+            line_color=colorLegend[i],
+            ),row=1, col=1)
+    #fig1.update_layout(legend_title_text=paramTitle)
+    # add val points
+    for i in range(len(paramStr)):
+        A1 = df1[~pd.isnull(df1[val + str(i)])]['Wavelength'].tolist()
+        B1 = df1[~pd.isnull(df1[val + str(i)])][paramStr[i]].tolist()
+        fig1.add_trace(go.Scatter(
+            x=A1,
+            y=B1,
+            legendgroup = 'lgd'+ str(i),
+            name =paramStr[i],
+            mode ="markers",
+            marker_color = colorLegend[i],
+            showlegend=False
+            ),row =1, col =1)
+    for i in range(len(paramStr)):
+        BB = df1[~pd.isnull(df1[val + str(i)])]['Wavelength'].tolist()
+        AA = [paramSel[i]]*len(BB)
+        fig1.add_trace(go.Scatter(
+            x= AA,
+            y=BB,
+            legendgroup ='lgd' + str(i),
+            name =paramStr[i],
+            mode ="markers",
+            marker_color = colorLegend[i],
+            showlegend=False,
+            ),row=1, col=2)
+    return fig1
+
 def DownSample(x,m):
     xDown = []
     i = 0
@@ -183,12 +276,15 @@ def ReadFolderTx(df, fileInit, param, xRange):
     NOF =len(param) # número de columnas
     for i in range(NOF):
         if fileInit + i  < 10:
-             file = 'W000' + str(fileInit + i) + '.csv'
+             #file = 'W000' + str(fileInit + i) + '.csv'
+             file = 'W00' + str(fileInit + i) + '.CSV'
         else:
              if fileInit + i  < 100:
-                file = 'W00' + str(fileInit + i) + '.csv'
+                #file = 'W00' + str(fileInit + i) + '.csv'
+                file = 'W00' + str(fileInit + i) + '.CSV'
              else:
-                file = 'W0' + str(fileInit + i) + '.csv'
+                #file = 'W0' + str(fileInit + i) + '.csv'
+                file = 'W0' + str(fileInit + i) + '.CSV'
         [xi,yi] = LoadFile(file, 29, xRange)
         df[str(param[i])] = yi - df['ASE']
     return df
@@ -256,7 +352,6 @@ def WaveletDecomposition(x, y, MW, DL):
                    'palevioletred', 'royalblue', 'sandybrown']
     N = len(y)
     L = []
-
     coeffs = pywt.wavedec(y, MW, mode='symmetric', level=DL, axis=-1)
     cAux = [];
     for i in range(DL + 1):
@@ -288,7 +383,6 @@ def WaveletDecomposition(x, y, MW, DL):
             line_color=colorLegend[i],
             name=nameLeg
             ))
-
     [sF, mY] = FastFourier(x, y)
     fig2 = make_subplots()
     for i in range(DL - 1):
@@ -305,7 +399,6 @@ def WaveletDecomposition(x, y, MW, DL):
             nameLeg = 'a' + str(DL)
         else:
             nameLeg = 'd' + str(DL - i)
-
         fig2.add_trace(go.Scatter(
             x=sFi,
             y=mYi,
@@ -387,6 +480,79 @@ def LaserStability(df, xRange, paramSel):
     ax.set_zlim(-70,-20)
     return
 
+def TxRef(x1,y1,xRange):
+    maxY1 = 0
+    minY1 = min(y1)
+    fig, ax = plt.subplots()
+    ax.set_xlim(xRange)
+    ax.set_ylim([minY1, maxY1])
+    #ax.set_xlabel('Longitud de onda (nm)', fontsize=16
+    ax.set_xlabel('Wavelength (nm)', fontsize=16)
+    #ax.set_ylabel('Transmisión (dB)', fontsize=16)
+    ax.set_ylabel('Transmission (dB)', fontsize=16)
+    #plt.show()
+    plt.plot(x1, y1, linewidth=0.8, color='k')
+    fig.tight_layout(pad=0)
+    auxWidth = 24 * cm
+    auxHeight = 15 * cm
+    figure = plt.gcf()
+    figure.set_size_inches(auxWidth, auxHeight)
+    plt.tight_layout()
+    plt.savefig('TxRef', dpi=300,transparent=True, bbox_inches='tight')
+    return
 
 
-
+def TxParametric(df1, varControl):
+    #legend title
+    if varControl == 'Temp':
+        title = r'$\mathrm{Temp.} (^{\circ}C)$'
+    elif varControl == 'Curv':
+        title = r'$\mathrm{Curv} (m^{-1})$'
+    elif varControl == 'Torsion':
+        title = r'$\mathrm{Torsion} (^{\circ})$'
+        #title = r'$\mathrm{Temp} (^{\circ})$'
+    else:
+        title = ''
+    col_names = df1.columns.values[2:]
+    paramStr = col_names.tolist()
+    NOF = len(paramStr)
+    #df1 = df[(df['Wavelength'] >= xRange[0]) & (df['Wavelength'] <= xRange[1])]
+    #Useful to see the insertion loss
+    #maxY1 = df1[paramStr].max()
+    maxY1 = 0
+    minY1 = df1[paramStr].min()
+    fig, ax = plt.subplots()
+    for i in range(NOF):
+        plt.plot(df1["Wavelength"], df1[paramStr[i]], linewidth=0.8)
+    lgd = plt.legend(paramStr, fontsize=8,
+                            title=title,
+                            title_fontsize=12,
+                            bbox_to_anchor=(1.1, 1),
+                            loc='upper right',
+                            fancybox=False)
+    #SEt xlim,ylim
+    xmin = min(df1["Wavelength"].tolist())
+    xmax = max(df1["Wavelength"].tolist())
+    ax.set_xlim([xmin,xmax])
+    ax.set_ylim([min(minY1), maxY1])
+    ax.set_xlabel('Wavelength (nm)', fontsize=16)
+    # ax.set_xlabel('Longitud de onda (nm)', fontsize=16)
+    ax.set_ylabel('Transmission (dB)', fontsize=16)
+    # ax.set_ylabel('Transmisión (dB)', fontsize=16)
+    #Arrow indicating the tunning direction
+    xOrigin = ( xmin + xmax ) / 2
+    yOrigin = -1
+    ax.annotate('', xy=(xOrigin, yOrigin), xycoords='data',
+                xytext=(xOrigin-1, yOrigin), textcoords='data',
+                arrowprops=dict(arrowstyle="->",
+                                ec="k",
+                                shrinkA=0, shrinkB=0))
+    fig.tight_layout(pad=0)
+    auxWidth = 24 * cm
+    auxHeight = 15 * cm
+    figure = plt.gcf()
+    figure.set_size_inches(auxWidth, auxHeight)
+    plt.tight_layout()
+    #plt.savefig(r'%d.png'%i, dpi=300,transparent=True, bbox_inches='tight',bbox_extra_artists=(lgd,))
+    plt.savefig('TxParamTempInc.png', dpi=300, transparent=True, bbox_inches='tight', bbox_extra_artists=(lgd,))
+    return
