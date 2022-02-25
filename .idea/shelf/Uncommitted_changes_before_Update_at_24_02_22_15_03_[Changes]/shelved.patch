@@ -1,0 +1,139 @@
+Index: GiselleTempInc.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>#Uses python3\nimport os\nimport csv\nimport numpy as np\nimport pandas as pd\nimport Funciones as fu\npd.options.plotting.backend = \"plotly\"\nfrom plotly.subplots import make_subplots\nimport plotly.graph_objects as go\nfrom pylab import *\n#import Matrix as mat\nimport matplotlib.pyplot as plt\nfrom scipy.fft import fft, ifft, fftfreq\nfrom matplotlib.widgets import Cursor, Button\n\nnumberFig = 0\ncm = 1/2.54  # centimeters in inches\nresolDPI = 300\n\nfont = {'size': 12,\n        'stretch':'ultra-condensed',\n        'weight': 'ultralight'\n        }\n\n\n##main\nos.getcwd()  # current directory\nos.chdir(r'C:\\Users\\Erika\\OneDrive - Universidad de Guanajuato\\Giselle\\INTERFEROMETRO_20_08_21\\Inc')\nxRange = [1520,1570]\n#temperatura\ndfParam = pd.read_csv('Inc.csv', skiprows=1,header=None, names=[\"fileName\", \"param\"])\nparam = dfParam[\"param\"].tolist()\n[xASE,yASE] = fu.LoadFile('EDFA140.csv',29,xRange)              #descomentar\nx = fu.DownSample(xASE,5)\nyASE_Down = fu.DownSample(yASE,5)\ndf = pd.DataFrame(list(zip(x,yASE_Down)), columns = ['Wavelength','ASE'])#lista de floats\nfileInit = dfParam[\"fileName\"][0]\ndf = fu.ReadFolderTx(df, fileInit, param, xRange)\nparamTitle = 'Temperature (Celsius deg)'\n#fu.Transmission(df,[1520,1580],paramTitle).\nval= 'min'\ndf1 = fu.PointsLinearity(df,xRange, param, val)\nfig1 = fu.PlotInteractive(df1, param, paramTitle, val)\nfig1.update_layout(title=\"MZI Giselle vs Temperature Inc.\")\nfig1.show()\n#fu.FastFourierPlot(df,xRange)\n#xRange = [1547,1560]; val= 'min'\n#xRange = [1520,1580]; val= 'min'\n#xRange = [1535,1550]; val= 'min'\n#xRange = [1550,1580]; val= 'min'\n#fu.Linear(df,xRange,val,paramTitle)
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/GiselleTempInc.py b/GiselleTempInc.py
+--- a/GiselleTempInc.py	(revision 885a24124b0f49b1becae573864a349589cc6899)
++++ b/GiselleTempInc.py	(date 1645730778303)
+@@ -23,9 +23,9 @@
+         }
+ 
+ 
+-##main
++##mai
+ os.getcwd()  # current directory
+-os.chdir(r'C:\Users\Erika\OneDrive - Universidad de Guanajuato\Giselle\INTERFEROMETRO_20_08_21\Inc')
++os.chdir(r'/home/estudiante/PythonDoctorado/Signals/INTERFEROMETRO_20_08_21/Inc')
+ xRange = [1520,1570]
+ #temperatura
+ dfParam = pd.read_csv('Inc.csv', skiprows=1,header=None, names=["fileName", "param"])
+Index: Funciones.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import os\nimport csv\nimport math\nimport pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib.pylab as pl\nfrom matplotlib.collections import PolyCollection\nfrom plotly.subplots import make_subplots\nimport plotly.graph_objects as go\nfrom scipy import signal\nfrom scipy.signal import argrelextrema\nfrom scipy.fft import fft, ifft, fftfreq\nimport pywt\n\n\n\ndef ReadFolderPout(fileInit, xRange, param):\n    #Read files (only xRange interval)\n    x = []; y = []; L = [];\n    NOF =len(param) # número de columnas\n    for i in range(NOF):\n        if fileInit + i  < 10:\n             file = 'W000' + str(fileInit + i) + '.csv'\n        else:\n             if fileInit + i  < 100:\n                file = 'W00' + str(fileInit + i) + '.csv'\n             else:\n                file = 'W0' + str(fileInit + i) + '.csv'\n        [xi, yi] = LoadFile(file, 29, xRange)\n        x.append(xi)\n        y.append(yi)\n        L.append(len(xi))\n    return [x,y,L]\n\ndef LoadFile(file,jump,xRange):\n    with open(file, newline='') as file:\n        reader = csv.reader(file, delimiter =',')\n        for k in range(jump):\n            next(reader)\n        xi = []; yi = []\n        for row in reader:\n            auxX = float(row[0])\n            auxY = float(row[1])\n            if (auxX >= xRange[0] and auxX <= xRange[1]):\n                xi.append(auxX)\n                yi.append(auxY)\n    return [xi,yi]\n\ndef List2df(x,y,L,param):\n#unifico la longitud de las listas para volverlas dataframe\n    NOF = len(param)\n    Lmax = max(L)\n    for i in range(NOF):\n        Li = L[i]\n        if Li < Lmax:\n            xMissed = (Lmax - Li)\n            noisyPAd = np.random.normal(-0.1, 0.2, xMissed)\n            nP= noisyPAd.tolist()\n            yP = [y[i][Li-1]] * xMissed\n            yPad = [sum(n) for n in zip(nP,yP)]\n            auxList = y[i] + yPad\n            y[i] = auxList\n            if i == 0:\n                xStep = round(x[i][1] - x[i][0], 4)\n                x0 = x[i][Li-1]\n                xPad = [x0 + x * xStep for x in range(0, xMissed)]\n                x[i] = x[i] + xPad\n                df = pd.DataFrame(list(zip(x[i], y[i])), columns=['Wavelength', str(param[i])])\n            else:\n                df[str(param[i])] = y[i]\n        else:\n            if i == 0:\n                df = pd.DataFrame(list(zip(x[i], y[i])), columns=['Wavelength', str(param[i])])\n            else:\n                df[str(param[i])] = y[i]\n    return df\n\ndef PointsLinearity(df, xRange, param, val):\n    df1 = df[(df['Wavelength'] >= xRange[0]) & (df['Wavelength'] <= xRange[1])]\n    NOF = len(param)\n    paramStr = []\n    if val == 'max':\n        for i in range(NOF):\n            paramStr.append(str(param[i]))\n            df1['max' + str(i)] = df1.iloc[argrelextrema(df1[paramStr[i]].values, np.greater_equal, order=15)[0]][paramStr[i]]\n\n    elif val == 'min':\n        for i in range(NOF):\n            paramStr.append(str(param[i]))\n            df1['min' + str(i)] = df1.iloc[argrelextrema(df1[paramStr[i]].values, np.less_equal, order=15)[0]][\n                    paramStr[i]]\n\n    else:\n        valY1 = df1[(df1[paramStr] >= val)][paramStr]\n        kval = df1[(df1[paramStr] >= val)][paramStr].idxmin()\n        valX1 = df1[\"Wavelength\"].loc[kval].tolist()\n    return df1\n\ndef LinearityLaser(df, param, height, thresh, prom):\n    NOF = len(param)\n    paramStr = []; FWHM = []\n    for i in range(NOF):\n        paramStr.append(str(param[i]))\n        peaksIndex,properties = signal.find_peaks(df[paramStr[i]], height=height, threshold=thresh, prominence=prom)\n        Pmax = properties[\"peak_heights\"]\n        df['max' + str(i)] = df.loc[peaksIndex][paramStr[i]]\n        for j in range(len(Pmax)):\n            init = properties[\"left_bases\"][j]\n            ending = properties[\"right_bases\"][j]\n            k=[index for index, value in enumerate(df[properties[\"left_bases\"][j]:properties[\"right_bases\"][j]][paramStr[i]]) if value > Pmax[j] - 3]\n            k1 = init + k[1]\n            k2 = init + k[-1]\n            FWHM = df.iloc[k2,0]- df.iloc[k1,0]\n            if j==0:\n                df['FWHM' + str(i)] = df.loc[peaksIndex][paramStr[i]] # onlycreating the column\n            df['FWHM' + str(i)][peaksIndex[j]] = FWHM\n    return df\n\ndef PlotInteractive(df1, param, paramTitle, val):\n    NOF = len(param)\n    colorLegend =[ ' black', ' blue', ' blueviolet', ' brown', ' cadetblue', ' chocolate', ' coral',\n                    ' cornflowerblue', ' crimson', ' darkblue', ' darkcyan', ' darkmagenta', ' darkorange', ' darkred',\n                    ' darkseagreen', ' darkslategray', ' darkviolet', ' deeppink', ' deepskyblue', ' dodgerblue',\n                    ' firebrick', ' forestgreen', ' fuchsia', ' gold', ' goldenrod', ' green', ' hotpink', ' indianred',\n                    ' indigo', ' orangered', ' purple', ' rebeccapurple', ' red', ' saddlebrown', ' salmon',\n                    ' seagreen', ' sienna', ' slateblue', ' steelblue', ' violet', ' yellowgreen', 'aqua', 'aquamarine',\n                    'darkgoldenrod', 'darkorchid', 'darkslateblue', 'darkturquoise', 'greenyellow', 'navy',\n                    'palevioletred', 'royalblue', 'sandybrown']\n\n    A = df1[\"Wavelength\"].tolist()\n    fig1 = make_subplots(1,2)\n    paramStr = []\n    for i in range(NOF):\n        paramStr.append(str(param[i]))\n        B = df1[str(param[i])]\n        fig1.add_trace(go.Scatter(\n            x=A,\n            y=B,\n            legendgroup = 'lgd'+str(i),\n            name=paramStr[i],\n            mode=\"lines\",\n            line_color=colorLegend[i],\n            ),row=1, col=1)\n    fig1.update_layout(legend_title_text=paramTitle)\n    for i in range(len(paramStr)):\n        A1 = df1[~pd.isnull(df1[val + str(i)])]['Wavelength'].tolist()\n        B1 = df1[~pd.isnull(df1[val + str(i)])][paramStr[i]].tolist()\n        fig1.add_trace(go.Scatter(\n            x=A1,\n            y=B1,\n            legendgroup = 'lgd'+ str(i),\n            name =paramStr[i],\n            mode =\"markers\",\n            marker_color = colorLegend[i],\n            showlegend=False\n            ),row =1, col =1)\n    for i in range(len(paramStr)):\n        BB = df1[~pd.isnull(df1[val + str(i)])]['Wavelength'].tolist()\n        AA = [param[i]]*len(BB)\n        fig1.add_trace(go.Scatter(\n            x= AA,\n            y=BB,\n            legendgroup ='lgd' + str(i),\n            name =paramStr[i],\n            mode =\"markers\",\n            marker_color = colorLegend[i],\n            showlegend=False,\n            ),row=1, col=2)\n    return fig1\n\ndef DownSample(x,m):\n    xDown = []\n    i = 0\n    while i <= len(x):\n        if (i % m )==0:\n             xDown.append(x[i])\n        i = i+1\n    return(xDown)\n\ndef ReadFolderTx(df, fileInit, param, xRange):\n    xi = []; yi = []\n    NOF =len(param) # número de columnas\n    for i in range(NOF):\n        if fileInit + i  < 10:\n             file = 'W000' + str(fileInit + i) + '.csv'\n        else:\n             if fileInit + i  < 100:\n                file = 'W00' + str(fileInit + i) + '.csv'\n             else:\n                file = 'W0' + str(fileInit + i) + '.csv'\n        [xi,yi] = LoadFile(file, 29, xRange)\n        df[str(param[i])] = yi - df['ASE']\n    return df\n\ndef ReadFolderLaserSame(df, fileInit, param, xRange):\n    x = []; y = []\n    NOF =len(param) # número de columnas\n    for i in range(NOF):\n        if fileInit + i  < 10:\n             file = 'W000' + str(fileInit + i) + '.csv'\n        else:\n             if fileInit + i  < 100:\n                file = 'W00' + str(fileInit + i) + '.csv'\n             else:\n                file = 'W0' + str(fileInit + i) + '.csv'\n        dfi = pd.read_csv(file, skiprows=29,header=None, names=[\"Wavelength\", str(param[i])])\n        dfi = dfi[(dfi['Wavelength'] >= xRange[0]) & (dfi['Wavelength'] <= xRange[1])]\n        df[str(param[i])] = dfi[str(param[i])] - df['ASE']\n    return df\n\ndef FastFourier(x ,y):\n    N = len(x)\n    dx = round(x[1] - x[0],4)\n    Fs = 1/dx\n    Y = fft(y)\n    sF = fftfreq(N, dx)[:N // 2]\n    mY = 2.0 / N * np.abs(Y[0:N // 2])\n    k1 = math.floor(N/Fs)\n    return [sF[:k1], mY[:k1]]\n\n\"\"\"\nfig = make_subplots()\n    fig.add_trace(go.Scatter(\n        x=sF,\n        y= mY,\n        mode=\"lines\",\n        line_color='black',\n        showlegend=True,\n    ))\n    fig.show()\"\"\"\n\"\"\"\n    plt.plot(sf, 2.0 / N * np.abs(Y[0:N // 2]), 'k-')\n    xlim(0, 1)\n    ylim(0, 10)\n    plt.xticks(np.arange(0, 1.1, 0.2))\n    plt.yticks(np.arange(0, 11, 2))\n    xlabel('Spatial frequency ($nm^{-1}$)', fontdict=font)\n    ylabel('Magnitude (A.U.)', fontdict=font)\n    plt.tick_params(labelsize=10, width=1)\n    auxWidth = 8.9 * cm\n    auxHeight = 8 * cm\n    figure = plt.gcf()\n    figure.set_size_inches(auxWidth, auxHeight)\n    plt.savefig(\"FFT.png\", dpi=300, bbox_inches=\"tight\", pad_inches=0.1, transparent=True)\n    plt.show()\n    \"\"\"\ndef WaveletDecomposition(x, y, MW, DL):\n    colorLegend = [' black', ' blue', ' blueviolet', ' brown', ' cadetblue', ' chocolate', ' coral',\n                   ' cornflowerblue', ' crimson', ' darkblue', ' darkcyan', ' darkmagenta', ' darkorange', ' darkred',\n                   ' darkseagreen', ' darkslategray', ' darkviolet', ' deeppink', ' deepskyblue', ' dodgerblue',\n                   ' firebrick', ' forestgreen', ' fuchsia', ' gold', ' goldenrod', ' green', ' hotpink', ' indianred',\n                   ' indigo', ' orangered', ' purple', ' rebeccapurple', ' red', ' saddlebrown', ' salmon',\n                   ' seagreen', ' sienna', ' slateblue', ' steelblue', ' violet', ' yellowgreen', 'aqua', 'aquamarine',\n                   'darkgoldenrod', 'darkorchid', 'darkslateblue', 'darkturquoise', 'greenyellow', 'navy',\n                   'palevioletred', 'royalblue', 'sandybrown']\n    N = len(y)\n    L = []\n\n    coeffs = pywt.wavedec(y, MW, mode='symmetric', level=DL, axis=-1)\n    cAux = [];\n    for i in range(DL + 1):\n        L.append(len(coeffs[i]))\n        cAux.append(np.zeros(L[i]))\n        yr = []\n    fig1 = make_subplots()\n    for i in range(DL - 1):\n        cAux[i] = coeffs[i]\n        yr.append(pywt.waverec(cAux, MW))\n        cAux[i] = np.zeros(L[i])\n        if i == 0:\n            fig1.add_trace(go.Scatter(\n                x=x,\n                y=y,\n                mode=\"lines\",\n                line_color=colorLegend[-1],\n                name = 'signal'\n                ))\n        if i==0:\n            nameLeg = 'a' + str(DL)\n        else:\n            nameLeg = 'd' + str(DL - i)\n\n        fig1.add_trace(go.Scatter(\n            x=x,\n            y=yr[i],\n            mode=\"lines\",\n            line_color=colorLegend[i],\n            name=nameLeg\n            ))\n\n    [sF, mY] = FastFourier(x, y)\n    fig2 = make_subplots()\n    for i in range(DL - 1):\n        [sFi, mYi] = FastFourierPlot(x, yr[i])\n        if i == 0:\n            fig2.add_trace(go.Scatter(\n                x= sF,\n                y= mY,\n                mode=\"lines\",\n                line_color=colorLegend[-1],\n                name='FFT signal'\n                ))\n        if i==0:\n            nameLeg = 'a' + str(DL)\n        else:\n            nameLeg = 'd' + str(DL - i)\n\n        fig2.add_trace(go.Scatter(\n            x=sFi,\n            y=mYi,\n            line_color=colorLegend[i],\n            name=nameLeg\n            ))\n    return fig1, fig2\n\n    \"\"\"\n    fig1 = make_subplots(DL-1, 1, shared_xaxes=True)\n    for i in range(DL-1):\n        cAux[i] = coeffs[i]\n        yr = pywt.waverec(cAux, MW)\n        cAux[i] = np.zeros(L[i])\n        if i==0:\n            fig1.add_trace(go.Scatter(\n                x=x,\n                y=y,\n                mode=\"lines\"), row=i + 1, col=1)\n\n        fig1.add_trace(go.Scatter(\n            x=x,\n            y=yr,\n            mode=\"lines\"), row=i + 1, col=1)\n    \"\"\"\n\ndef SignalPlot(x,y):\n    fig = make_subplots(1)\n    fig.add_trace(go.Scatter(\n            x=x,\n            y=y,\n            mode=\"lines\",\n            line_color='black',\n            ))\n    fig.show()\n\n\ndef SignalSpectrogram(x,y):\n    y = np.array(y)\n    fig, ax = plt.subplots()\n    dx = round(x[1] - x[0],4)\n    Lx = len(x)\n    Fs = int(1/dx)\n    SF, wavelength, Sxx = signal.spectrogram(y, Fs)\n    ax.pcolormesh(wavelength, SF, Sxx, shading='gouraud')\n    ax.set_ylabel('Spatial frequency (1/nm)')\n    ax.set_xlabel('Wavelength (nm)')\n    \"\"\"\n    powerSpectrum, freqenciesFound, time, imageAxis = plt.specgram(y,Lx,Fs)\n    plt.xlabel('Wavelength (nm)')\n    plt.ylabel('Spatial frequency (1/nm)')\n    plt.show()\n    \"\"\"\n    return fig\n\ndef LaserStability(df, xRange, paramSel):\n    color = ['k','b','r','g','c','m','y']\n    pl.figure()\n    ax = pl.subplot(projection='3d')\n    zi = []\n    cValue = []\n    verts = []\n    auxXi =df[(df['Wavelength'] >= xRange[0]) & (df['Wavelength'] <= xRange[1])]['Wavelength']\n    xi =auxXi.tolist()\n    Lx = len(xi)\n    NS = len(paramSel)\n    for i in range(NS-1,-1,-1):\n        ci = [i] * len(xi)\n        Lc = len(ci)\n        cValue.append(str(paramSel[NS-1-i]))\n        zi = df[(df['Wavelength'] >= xRange[0]) & (df['Wavelength'] <= xRange[1])][str(paramSel[i])].tolist()\n        Lz = len(zi)\n        ax.plot(xi, ci, zi, color=color[i],linewidth=1)\n    ax.set_xlabel('Wavelength (nm)')\n    ax.set_yticks(list(range(NS)))\n    ax.set_yticklabels(cValue)\n    ax.set_zlabel('Output power (dBm)')\n    ax.set_xlim(xRange[0], xRange[1])\n    ax.set_zlim(-70,-20)\n    return\n\n\n\n\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Funciones.py b/Funciones.py
+--- a/Funciones.py	(revision 885a24124b0f49b1becae573864a349589cc6899)
++++ b/Funciones.py	(date 1645733545760)
+@@ -11,7 +11,7 @@
+ from scipy import signal
+ from scipy.signal import argrelextrema
+ from scipy.fft import fft, ifft, fftfreq
+-import pywt
++#import pywt
+ 
+ 
+ 
+@@ -21,12 +21,16 @@
+     NOF =len(param) # número de columnas
+     for i in range(NOF):
+         if fileInit + i  < 10:
+-             file = 'W000' + str(fileInit + i) + '.csv'
++             file = 'W000' + str(fileInit + i) + '.CSV'
++             #file = 'W000' + str(fileInit + i) + '.csv'
+         else:
+              if fileInit + i  < 100:
+-                file = 'W00' + str(fileInit + i) + '.csv'
++                #file = 'W00' + str(fileInit + i) + '.csv'
++                file = 'W00' + str(fileInit + i) + '.CSV'
+              else:
+-                file = 'W0' + str(fileInit + i) + '.csv'
++                #file = 'W0' + str(fileInit + i) + '.csv'
++                file = 'W0' + str(fileInit + i) + '.CSV'
++
+         [xi, yi] = LoadFile(file, 29, xRange)
+         x.append(xi)
+         y.append(yi)
+@@ -183,12 +187,15 @@
+     NOF =len(param) # número de columnas
+     for i in range(NOF):
+         if fileInit + i  < 10:
+-             file = 'W000' + str(fileInit + i) + '.csv'
++             #file = 'W000' + str(fileInit + i) + '.csv'
++             file = 'W000' + str(fileInit + i) + '.CSV'
+         else:
+              if fileInit + i  < 100:
+-                file = 'W00' + str(fileInit + i) + '.csv'
++                #file = 'W00' + str(fileInit + i) + '.csv'
++                file = 'W00' + str(fileInit + i) + '.CSV'
+              else:
+-                file = 'W0' + str(fileInit + i) + '.csv'
++                #file = 'W0' + str(fileInit + i) + '.csv'
++                file = 'W0' + str(fileInit + i) + '.CSV'
+         [xi,yi] = LoadFile(file, 29, xRange)
+         df[str(param[i])] = yi - df['ASE']
+     return df
+Index: .idea/Laser.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<module type=\"PYTHON_MODULE\" version=\"4\">\n  <component name=\"NewModuleRootManager\">\n    <content url=\"file://$MODULE_DIR$\">\n      <excludeFolder url=\"file://$MODULE_DIR$/venv\" />\n    </content>\n    <orderEntry type=\"jdk\" jdkName=\"Python 3.7\" jdkType=\"Python SDK\" />\n    <orderEntry type=\"sourceFolder\" forTests=\"false\" />\n  </component>\n  <component name=\"TestRunnerService\">\n    <option name=\"PROJECT_TEST_RUNNER\" value=\"Unittests\" />\n  </component>\n</module>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/Laser.iml b/.idea/Laser.iml
+--- a/.idea/Laser.iml	(revision 885a24124b0f49b1becae573864a349589cc6899)
++++ b/.idea/Laser.iml	(date 1645734807250)
+@@ -4,10 +4,7 @@
+     <content url="file://$MODULE_DIR$">
+       <excludeFolder url="file://$MODULE_DIR$/venv" />
+     </content>
+-    <orderEntry type="jdk" jdkName="Python 3.7" jdkType="Python SDK" />
++    <orderEntry type="jdk" jdkName="Python 3.9" jdkType="Python SDK" />
+     <orderEntry type="sourceFolder" forTests="false" />
+   </component>
+-  <component name="TestRunnerService">
+-    <option name="PROJECT_TEST_RUNNER" value="Unittests" />
+-  </component>
+ </module>
+\ No newline at end of file
+Index: .idea/PythonDoctorado.iml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/PythonDoctorado.iml b/.idea/PythonDoctorado.iml
+new file mode 100644
+--- /dev/null	(date 1645727387582)
++++ b/.idea/PythonDoctorado.iml	(date 1645727387582)
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<module type="PYTHON_MODULE" version="4">
++  <component name="NewModuleRootManager">
++    <content url="file://$MODULE_DIR$" />
++    <orderEntry type="inheritedJdk" />
++    <orderEntry type="sourceFolder" forTests="false" />
++  </component>
++</module>
+\ No newline at end of file
+Index: .idea/misc.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"ProjectRootManager\" version=\"2\" project-jdk-name=\"Python 3.7\" project-jdk-type=\"Python SDK\" />\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+--- a/.idea/misc.xml	(revision 885a24124b0f49b1becae573864a349589cc6899)
++++ b/.idea/misc.xml	(date 1645734807342)
+@@ -1,4 +1,4 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <project version="4">
+-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.7" project-jdk-type="Python SDK" />
++  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.9" project-jdk-type="Python SDK" />
+ </project>
+\ No newline at end of file
