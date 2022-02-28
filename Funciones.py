@@ -210,6 +210,212 @@ def PlotInteractive(df1, param, paramTitle, val):
             ),row=1, col=2)
     return fig1
 
+def ReadFolderStability(fileInit, xRange, yRange, param):
+    #Read files (only xRange interval)
+    x = []; y = []; L = [];
+    NOF =len(param) # número de columnas
+    for i in range(0, NOF, 4):
+        if fileInit + i  < 10:
+             file = 'W00' + str(fileInit + i) + '.CSV'
+        else:
+             if fileInit + i  < 100:
+                file = 'W00' + str(fileInit + i) + '.CSV'
+             else:
+                file = 'W0' + str(fileInit + i) + '.CSV'
+        [xi, yi] = LoadFile(file, 29, xRange, yRange)
+        x.append(xi)
+        y.append(yi)
+        L.append(len(xi))
+    return [x,y,L]
+
+def LoadFile(file,jump, xRange, yRange):
+    #jump especifica cuantas filas se salta
+    with open(file, newline='') as file:
+        reader = csv.reader(file, delimiter =',')
+        for k in range(jump):
+            next(reader)
+        xi = []; yi = []
+        for row in reader:
+            auxX = float(row[0])
+            auxY = float(row[1])
+            if (auxX >= xRange[0] and auxX <= xRange[1]):
+                xi.append(auxX)
+                if auxY < yRange[0]:
+                    auxY = yRange[0]
+                if auxY > yRange[1]:
+                    auxY = yRange[1]
+                yi.append(auxY)
+    return [xi,yi]
+
+def SelectLaserSignal(x,y,L):
+    LL = len(L)
+    x1 = np.empty(LL)
+    x2 = np.empty(LL)
+    ymax = np.empty(LL)
+    FWHM = np.empty(LL)
+    #Hallar todos y elegir el mayoor pico de potencia
+    for i in range(LL):
+        xi = np.array(x[i])
+        yi = np.array(y[i])
+        x1[i], x2[i], ymax[i], FWHM[i] = Calculate_yMax_FWHM(xi, yi)
+    kymax = np.argmax(ymax)
+    return kymax, ymax[kymax], FWHM[kymax]
+
+def Calculate_yMax_FWHM(x, y):
+    kmax = np.argmax(y)
+    ymax = y[kmax]
+    y3dB = ymax - 3
+    d = np.asarray(np.where((y - y3dB) > 0))
+    k1 = d[0, 0]
+    k2 = d[0, -1]
+    FWHM = x[k2] - x[k1]
+    return x[k1], x[k2], ymax, FWHM
+
+
+def PlotLaserFeatures(x,y, xRange, yRange, height, prom, dist):
+    fig, ax = plt.subplots()
+    ax.set_xlim(xRange)
+    ax.set_ylim(yRange)
+    # ax.set_xlabel('Longitud de onda (nm)', fontsize=16)
+    ax.set_xlabel('Wavelength (nm)', fontsize=16)
+    # ax.set_ylabel('Transmisión (dB)', fontsize=16)
+    ax.set_ylabel('Output power (dBm)', fontsize=16)
+    plt.plot(x, y, color='k', linewidth=0.8)
+    x1, x2, ymax, FWHM = Calculate_yMax_FWHM(x,y)
+    # FWHM
+    #left arrow
+    xy1 = (x1,ymax-3)
+    xytext1 =(x1-1,ymax-3)
+    ax.annotate('', xy=xy1, xycoords='data',
+                xytext=xytext1, textcoords='data',
+                arrowprops=dict(arrowstyle="->",
+                                ec="k",
+                                shrinkA=0, shrinkB=0))
+    #right arrow
+    xy2 = (x2, ymax - 3)
+    xytext2 = (x2+1, ymax - 3)
+    ax.annotate('', xy=xy2, xycoords='data',
+                xytext=xytext2, textcoords='data',
+                arrowprops=dict(arrowstyle="->",
+                                ec="k",
+                                shrinkA=0, shrinkB=0))
+    xFWHM = x1+1
+    yFWHM = ymax-2
+    plt.text(xFWHM, yFWHM, ' FWHM\n' + str(round(FWHM,4)) + 'nm')
+    # SMSR
+    SMSR, peaksDec, xPeaksDec = CalculateSMSR(x, y, height, prom, dist)
+    xprom = (xPeaksDec[0] + xPeaksDec[1]) / 2
+    yprom = (peaksDec[0]+peaksDec[1])/2
+    xy = ((xPeaksDec[1]+3*xPeaksDec[0])/4, peaksDec[1])
+    xytext = ((xPeaksDec[1]+3*xPeaksDec[0])/4, peaksDec[0])
+    ax.annotate('', xy=xy, xycoords='data',
+                xytext=xytext, textcoords='data',
+                arrowprops=dict(arrowstyle="<->",
+                                ec="k",
+                                shrinkA=0, shrinkB=0))
+    plt.text(xprom,yprom,' SMSR\n'+str(SMSR)+'dB')
+    fig.tight_layout(pad=0)
+    auxWidth = 26 * cm
+    auxHeight = 15 * cm
+    figure = plt.gcf()
+    figure.set_size_inches(auxWidth, auxHeight)
+    plt.tight_layout()
+    # plt.savefig(r'%d.png' % i, dpi=300, transparent=True, bbox_inches='tight', bbox_extra_artists=(lgd,))
+    plt.savefig('Laser.png', dpi=300, transparent=True, bbox_inches='tight')
+    return
+
+#def CalculateSMSR(x,y,L, height, thresh, prom):
+def CalculateSMSR(x, y, height, prom, dist):
+    x = np.array(x)
+    y = np.array(y)
+    peaksIndex, properties = signal.find_peaks(y, height=height, prominence=prom, distance=dist)
+    peaks = y[peaksIndex]
+    xPeaks = x[peaksIndex]
+    #Sorting ascending
+    peaksSorted = np.sort(peaks)
+    kSorted = np.argsort(peaksSorted)
+    peaksIndexSorted = peaksIndex[kSorted]
+    kmax = kSorted[-1]
+    if kmax == len(peaks)-1: #si el mayor está al final
+        peaksDec = np.array([peaks[-1], peaks[-2]])
+        xPeaksDec = np.array([xPeaks[-1], xPeaks[-2]])
+    elif kmax==0: #si el mayor está al inicio
+        peaksDec = np.array([peaks[0], peaks[1]])
+        xPeaksDec = np.array([xPeaks[0], xPeaks[1]])
+    else: #el mayor esta intermedio, comparar izq y derecha
+        peaksRight = peaks[kmax + 1]
+        peaksLeft = peaks[kmax - 1]
+        if peaksRight>=peaksLeft:
+            peaksDec = np.array([peaks[kmax], peaks[kmax + 1]])
+            xPeaksDec = np.array([xPeaks[kmax], xPeaks[kmax+1]])
+        else:
+            peaksDec = np.array([peaks[kmax], peaks[kmax -1]])
+            xPeaksDec = np.array([xPeaks[kmax], xPeaks[kmax - 1]])
+    SMSR = abs(peaksDec[0] - peaksDec[1])
+    return SMSR, peaksDec, xPeaksDec
+
+def LaserStability3DInteractive(x,y,time):
+    NOF = len(time)
+    figS = go.Figure()
+    for i in range(NOF):
+        xi = x[i]
+        yi = time[i] * np.ones(len(xi))
+        zi = y[i]
+        figS.add_trace(go.Scatter3d(x=xi,
+                                    y=yi,
+                                    z=zi,
+                                    mode='lines',
+                                    showlegend=False,
+                                    marker=dict(
+                                        size=12,
+                                        opacity=0.8
+                                        )))
+    figS.update_layout(title="Stability")
+    figS.show()
+    return
+
+def LaserStability3D(x, z, time,xRange):
+    fig = plt.figure()
+    ax = pl.subplot(projection='3d')
+    cValue = []
+    verts = []
+    NS = len(time)
+    #for i in range(NS-1,-1,-1):
+    for i in range(NS):
+        yi = [i] * len(x[i])
+        #cValue.append(str(paramSel[i]))
+        #cValue.append(str(paramSel[NS - 1 - i]))
+        zi = z[i]
+        Lz = len(zi)
+        xp = np.array([x[i]])
+        yp = np.array([yi])
+        zp = np.array([zi])
+        ax.plot_wireframe(xp, yp, zp, color='k',linewidth=1)
+        #ax.plot3D(xi, ci, zi, color='k',linewidth=1)
+    ax.set_xlabel('Wavelength (nm)',fontsize=14)
+    ax.set_ylabel('Time(s)',fontsize=14)
+    #plt.xticks(fontsize=12)
+    #plt.yticks(fontsize=12)
+    ax.set_zticks(list(range(-90,-9,10)),fontsize=20)
+    pl.xticks(list(range(1545,1561,5)), ['1545', '1550', '1555', '1560'])
+    pl.yticks(list(range(NS)), ['0','','','','','','','','','','80'])
+    ax.set_zlabel('Output power (dBm)',fontsize=14)
+    ax.set_xlim(xRange[0], xRange[1])
+    ax.set_zlim(-80, -10)
+    ax.view_init(elev=1., azim=-66)
+    pl.show()
+    pl.grid
+    #Setting figure
+    fig.tight_layout(pad=0)
+    auxWidth = 26 * cm
+    auxHeight = 15 * cm
+    figure = pl.gcf()
+    figure.set_size_inches(auxWidth, auxHeight)
+    pl.tight_layout()
+    pl.savefig('Stability.png', dpi=300, transparent=True, bbox_inches='tight')
+    return
+
+
 def PlotInteractiveLin(df1, paramSel, val):
     NOF = len(paramSel)
     col_names = df1.columns.values[1:NOF+1]
