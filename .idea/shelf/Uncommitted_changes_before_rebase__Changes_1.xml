@@ -1,0 +1,54 @@
+<changelist name="Uncommitted_changes_before_rebase_[Changes]1" date="1646781315609" recycled="false" toDelete="true">
+  <option name="PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_rebase_[Changes]1/shelved.patch" />
+  <option name="DESCRIPTION" value="Uncommitted changes before rebase [Changes]" />
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Laser/Stability/Laser.png" />
+    <option name="AFTER_PATH" value="Signals/Interferometro_01/Laser/Stability/Laser.png" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_rebase_[Changes]1/Laser.png" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Temperature/Temperatura_02.png" />
+    <option name="AFTER_PATH" />
+    <option name="SHELVED_PATH" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Temperature/2.png" />
+    <option name="AFTER_PATH" />
+    <option name="SHELVED_PATH" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Temperature/untitled.png" />
+    <option name="AFTER_PATH" />
+    <option name="SHELVED_PATH" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Temperature/Inc/TxParamTempInc.png" />
+    <option name="AFTER_PATH" value="Signals/Interferometro_01/Temperature/Inc/TxParamTempInc.png" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_rebase_[Changes]1/TxParamTempInc.png" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Temperature/Temperatura_02.fig" />
+    <option name="AFTER_PATH" />
+    <option name="SHELVED_PATH" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Temperature/Inc/TxRef.png" />
+    <option name="AFTER_PATH" value="Signals/Interferometro_01/Temperature/Inc/TxRef.png" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_rebase_[Changes]1/TxRef.png" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Temperature/temperatura_01.fig" />
+    <option name="AFTER_PATH" />
+    <option name="SHELVED_PATH" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Temperature/temperatura_01.png" />
+    <option name="AFTER_PATH" />
+    <option name="SHELVED_PATH" />
+  </binary>
+  <binary>
+    <option name="BEFORE_PATH" value="Signals/Interferometro_01/Laser/Stability/Stability.png" />
+    <option name="AFTER_PATH" value="Signals/Interferometro_01/Laser/Stability/Stability.png" />
+    <option name="SHELVED_PATH" value="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_rebase_[Changes]1/Stability.png" />
+  </binary>
+</changelist>
